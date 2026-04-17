@@ -1,0 +1,28 @@
+# Ignore everything by default
+*
+
+# Then explicitly allow what we want tracked
+!.gitignore
+!hacs.json
+!README.md
+!LICENSE
+
+# Allow the entire custom component folder
+!custom_components/
+!custom_components/**
+
+# HA runtime / secrets — never commit these
+custom_components/**/__pycache__/
+custom_components/**/*.pyc
+
+# Ignore other HA config files
+configuration.yaml
+secrets.yaml
+automations.yaml
+scenes.yaml
+scripts.yaml
+home-assistant*.log*
+home-assistant_v2.db*
+deps/
+tts/
+blueprints/

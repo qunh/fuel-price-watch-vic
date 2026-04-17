@@ -1,0 +1,12 @@
+{
+  "domain": "fuel_price_watch_vic",
+  "name": "Fuel Price Watch VIC",
+  "version": "1.0.0",
+  "documentation": "https://github.com/qunh/fuel-price-watch-vic",
+  "issue_tracker": "https://github.com/qunh/fuel-price-watch-vic/issues",
+  "dependencies": [],
+  "codeowners": ["@qunh"],
+  "requirements": [],
+  "iot_class": "cloud_polling",
+  "config_flow": true
+}
