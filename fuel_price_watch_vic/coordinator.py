@@ -11,7 +11,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     API_PRICES_ENDPOINT,
     CONF_CONSUMER_ID,
+    CONF_LOCATION_SOURCE,
     CONF_RADIUS_KM,
+    DEFAULT_LOCATION_SOURCE,
     DEFAULT_RADIUS_KM,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -64,12 +66,25 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
             CONF_RADIUS_KM, self.entry.data.get(CONF_RADIUS_KM, DEFAULT_RADIUS_KM)
         ) * 1000
 
-        # Resolve home zone coordinates
-        home_zone = self.hass.states.get("zone.home")
-        if home_zone is None:
-            raise UpdateFailed("zone.home not found – set a Home location in HA settings")
-        home_lat: float = home_zone.attributes["latitude"]
-        home_lon: float = home_zone.attributes["longitude"]
+        # Resolve coordinates from the configured location source
+        location_source: str = self.entry.options.get(
+            CONF_LOCATION_SOURCE,
+            self.entry.data.get(CONF_LOCATION_SOURCE, DEFAULT_LOCATION_SOURCE),
+        )
+        location_state = self.hass.states.get(location_source)
+        if location_state is None:
+            raise UpdateFailed(
+                f"Location source '{location_source}' not found. "
+                "Check the integration options or ensure the device tracker is available."
+            )
+        try:
+            home_lat: float = float(location_state.attributes["latitude"])
+            home_lon: float = float(location_state.attributes["longitude"])
+        except (KeyError, TypeError, ValueError) as err:
+            raise UpdateFailed(
+                f"'{location_source}' has no latitude/longitude attributes. "
+                "If using a device tracker, ensure location permission is granted in the HA app."
+            ) from err
 
         headers = {
             "x-consumer-id": consumer_id,

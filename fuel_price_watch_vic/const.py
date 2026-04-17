@@ -2,8 +2,10 @@ DOMAIN = "fuel_price_watch_vic"
 
 CONF_CONSUMER_ID = "consumer_id"
 CONF_RADIUS_KM = "radius_km"
+CONF_LOCATION_SOURCE = "location_source"
 
 DEFAULT_RADIUS_KM = 5
+DEFAULT_LOCATION_SOURCE = "zone.home"
 DEFAULT_SCAN_INTERVAL = 3600  # API data is ~24h delayed; hourly refresh is sufficient
 
 API_BASE_URL = "https://api.fuel.service.vic.gov.au/open-data/v1"

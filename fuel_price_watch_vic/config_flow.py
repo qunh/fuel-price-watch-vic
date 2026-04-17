@@ -8,7 +8,9 @@ from homeassistant.core import callback
 from .const import (
     API_PRICES_ENDPOINT,
     CONF_CONSUMER_ID,
+    CONF_LOCATION_SOURCE,
     CONF_RADIUS_KM,
+    DEFAULT_LOCATION_SOURCE,
     DEFAULT_RADIUS_KM,
     DOMAIN,
     USER_AGENT,
@@ -19,6 +21,9 @@ class FuelPriceWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Fuel Price Watch VIC."""
 
     VERSION = 1
+
+    def __init__(self):
+        self._data: dict = {}
 
     async def async_step_user(self, user_input=None):
         errors = {}
@@ -34,13 +39,11 @@ class FuelPriceWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(consumer_id)
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title="Fuel Price Watch VIC",
-                    data={
-                        CONF_CONSUMER_ID: consumer_id,
-                        CONF_RADIUS_KM: user_input[CONF_RADIUS_KM],
-                    },
-                )
+                self._data = {
+                    CONF_CONSUMER_ID: consumer_id,
+                    CONF_RADIUS_KM: user_input[CONF_RADIUS_KM],
+                }
+                return await self.async_step_location()
 
         schema = vol.Schema(
             {
@@ -57,6 +60,29 @@ class FuelPriceWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_location(self, user_input=None):
+        """Step 2 – pick the location source (zone.home or a device tracker)."""
+        if user_input is not None:
+            self._data[CONF_LOCATION_SOURCE] = user_input[CONF_LOCATION_SOURCE]
+            return self.async_create_entry(title="Fuel Price Watch VIC", data=self._data)
+
+        # Build list of options: zone.home first, then all device_tracker.* entities
+        options = [DEFAULT_LOCATION_SOURCE] + sorted(
+            state.entity_id
+            for state in self.hass.states.async_all("device_tracker")
+        )
+
+        return self.async_show_form(
+            step_id="location",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_LOCATION_SOURCE, default=DEFAULT_LOCATION_SOURCE
+                    ): vol.In(options),
+                }
+            ),
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(entry):
@@ -64,11 +90,22 @@ class FuelPriceWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class FuelPriceWatchOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for updating the search radius."""
+    """Handle options flow."""
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
+
+        # Build device tracker list the same way as the config flow
+        options = [DEFAULT_LOCATION_SOURCE] + sorted(
+            state.entity_id
+            for state in self.hass.states.async_all("device_tracker")
+        )
+
+        current_location = self.config_entry.options.get(
+            CONF_LOCATION_SOURCE,
+            self.config_entry.data.get(CONF_LOCATION_SOURCE, DEFAULT_LOCATION_SOURCE),
+        )
 
         return self.async_show_form(
             step_id="init",
@@ -81,6 +118,9 @@ class FuelPriceWatchOptionsFlow(config_entries.OptionsFlow):
                             self.config_entry.data.get(CONF_RADIUS_KM, DEFAULT_RADIUS_KM),
                         ),
                     ): vol.All(int, vol.Range(min=1, max=100)),
+                    vol.Required(
+                        CONF_LOCATION_SOURCE, default=current_location
+                    ): vol.In(options),
                 }
             ),
         )
