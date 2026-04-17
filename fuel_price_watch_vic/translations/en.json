@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Fuel Price Watch VIC",
+        "data": {
+          "suburb": "Suburb",
+          "postcode": "Postcode",
+          "fuel_type": "Fuel Type"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to fuel price API",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This postcode and fuel type is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Fuel Price Watch VIC Options",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  }
+}
