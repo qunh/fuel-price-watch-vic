@@ -3,19 +3,20 @@
     "step": {
       "user": {
         "title": "Set up Fuel Price Watch VIC",
+        "description": "Enter your Service Victoria Fair Fuel API consumer ID and the search radius around your home location.",
         "data": {
-          "suburb": "Suburb",
-          "postcode": "Postcode",
-          "fuel_type": "Fuel Type"
+          "consumer_id": "Consumer ID",
+          "radius_km": "Search radius (km)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to fuel price API",
+      "cannot_connect": "Failed to connect to the Fuel Price API",
+      "invalid_auth": "Invalid Consumer ID – check your Service Victoria credentials",
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "This postcode and fuel type is already configured"
+      "already_configured": "This Consumer ID is already configured"
     }
   },
   "options": {
@@ -23,9 +24,10 @@
       "init": {
         "title": "Fuel Price Watch VIC Options",
         "data": {
-          "scan_interval": "Update interval (seconds)"
+          "radius_km": "Search radius (km)"
         }
       }
     }
   }
 }
+

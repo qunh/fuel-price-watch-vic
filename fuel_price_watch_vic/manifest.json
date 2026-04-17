@@ -6,7 +6,7 @@
   "issue_tracker": "https://github.com/qunh/fuel-price-watch-vic/issues",
   "dependencies": [],
   "codeowners": ["@qunh"],
-  "requirements": ["aiohttp>=3.8.0"],
+  "requirements": [],
   "iot_class": "cloud_polling",
   "config_flow": true
 }
