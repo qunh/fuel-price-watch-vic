@@ -21,7 +21,7 @@ A [Home Assistant](https://www.home-assistant.io/) custom component that tracks 
 ## Prerequisites
 
 1. **Home Assistant** 2023.x or later
-2. A **Service Victoria API Consumer ID** — register for free at [developer.service.vic.gov.au](https://developer.service.vic.gov.au/apis/fuel-prices)
+2. A **Service Victoria API Consumer ID** — register for free at [service victoria](https://service.vic.gov.au/find-services/transport-and-driving/servo-saver/help-centre/servo-saver-public-api)
 
 ---
 
