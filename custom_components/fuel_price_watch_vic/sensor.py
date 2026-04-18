@@ -70,7 +70,7 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
     def device_info(self) -> dict:
         return {
             "identifiers": {(DOMAIN, self.coordinator.entry.entry_id)},
-            "name": "Fuel Price Watch VIC",
+            "name": "Fuel Price Watch",
             "manufacturer": "Service Victoria",
             "model": "Fair Fuel Open Data",
         }

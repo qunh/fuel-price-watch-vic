@@ -5,7 +5,8 @@ from datetime import timedelta
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -21,6 +22,10 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Only re-query the API if the device has moved more than this distance (metres).
+# Prevents GPS jitter from hammering the API.
+_MIN_MOVE_M = 250
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -38,12 +43,59 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
+        self._last_lat: float | None = None
+        self._last_lon: float | None = None
+        self._unsub_location: callable | None = None
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
+
+    def _register_location_listener(self) -> None:
+        """Subscribe to state changes on the configured location source entity."""
+        location_source: str = self.entry.options.get(
+            CONF_LOCATION_SOURCE,
+            self.entry.data.get(CONF_LOCATION_SOURCE, DEFAULT_LOCATION_SOURCE),
+        )
+        # zone.home doesn't move, no need to listen
+        if location_source == DEFAULT_LOCATION_SOURCE:
+            return
+
+        @callback
+        def _on_location_change(event) -> None:
+            new_state = event.data.get("new_state")
+            if new_state is None:
+                return
+            try:
+                new_lat = float(new_state.attributes["latitude"])
+                new_lon = float(new_state.attributes["longitude"])
+            except (KeyError, TypeError, ValueError):
+                return
+
+            # Skip tiny GPS jitter movements
+            if self._last_lat is not None and self._last_lon is not None:
+                dist = _haversine_m(self._last_lat, self._last_lon, new_lat, new_lon)
+                if dist < _MIN_MOVE_M:
+                    return
+
+            _LOGGER.debug(
+                "Location changed for %s — triggering fuel price refresh",
+                location_source,
+            )
+            self.hass.async_create_task(self.async_request_refresh())
+
+        self._unsub_location = async_track_state_change_event(
+            self.hass, [location_source], _on_location_change
+        )
+        _LOGGER.debug("Registered location listener on %s", location_source)
+
+    def _unregister_location_listener(self) -> None:
+        """Remove the state-change subscription if it exists."""
+        if self._unsub_location is not None:
+            self._unsub_location()
+            self._unsub_location = None
 
     async def _async_update_data(self) -> dict:
         """Fetch prices from the Service Victoria API and return best per fuel type.
@@ -62,9 +114,9 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
           }
         """
         consumer_id: str = self.entry.data[CONF_CONSUMER_ID]
-        radius_m: float = self.entry.options.get(
+        radius_m: float = float(self.entry.options.get(
             CONF_RADIUS_KM, self.entry.data.get(CONF_RADIUS_KM, DEFAULT_RADIUS_KM)
-        ) * 1000
+        )) * 1000
 
         # Resolve coordinates from the configured location source
         location_source: str = self.entry.options.get(
@@ -85,6 +137,10 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
                 f"'{location_source}' has no latitude/longitude attributes. "
                 "If using a device tracker, ensure location permission is granted in the HA app."
             ) from err
+
+        # Store last known position for movement threshold checks in the listener
+        self._last_lat = home_lat
+        self._last_lon = home_lon
 
         headers = {
             "x-consumer-id": consumer_id,

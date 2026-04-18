@@ -4,6 +4,11 @@ import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
 from .const import (
     API_PRICES_ENDPOINT,
@@ -48,8 +53,14 @@ class FuelPriceWatchConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_CONSUMER_ID): str,
-                vol.Required(CONF_RADIUS_KM, default=DEFAULT_RADIUS_KM): vol.All(
-                    int, vol.Range(min=1, max=100)
+                vol.Required(CONF_RADIUS_KM, default=DEFAULT_RADIUS_KM): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=100,
+                        step=1,
+                        unit_of_measurement="km",
+                        mode=NumberSelectorMode.BOX,
+                    )
                 ),
             }
         )
@@ -117,7 +128,15 @@ class FuelPriceWatchOptionsFlow(config_entries.OptionsFlow):
                             CONF_RADIUS_KM,
                             self.config_entry.data.get(CONF_RADIUS_KM, DEFAULT_RADIUS_KM),
                         ),
-                    ): vol.All(int, vol.Range(min=1, max=100)),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=1,
+                            max=100,
+                            step=1,
+                            unit_of_measurement="km",
+                            mode=NumberSelectorMode.BOX,
+                        )
+                    ),
                     vol.Required(
                         CONF_LOCATION_SOURCE, default=current_location
                     ): vol.In(options),
