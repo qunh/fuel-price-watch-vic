@@ -198,6 +198,8 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
                         "phone": station.get("contactPhone", ""),
                         "distance_m": round(dist),
                         "updated_at": price_entry.get("updatedAt", ""),
+                        "station_lat": s_lat,
+                        "station_lon": s_lon,
                     }
 
         return best

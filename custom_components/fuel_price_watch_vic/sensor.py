@@ -39,7 +39,7 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
         self._fuel_type = fuel_type
         friendly = FUEL_TYPES.get(fuel_type, fuel_type)
         self._attr_unique_id = f"{entry.entry_id}_{fuel_type}"
-        self._attr_name = f"Fuel Price {friendly}"
+        self._attr_name = friendly
 
     @property
     def _data(self) -> dict | None:
@@ -57,7 +57,14 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
         d = self._data
         if not d:
             return {}
-        return {
+        lat = d.get("station_lat")
+        lon = d.get("station_lon")
+        directions_url = (
+            f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
+            if lat is not None and lon is not None
+            else None
+        )
+        attrs = {
             "fuel_type": self._fuel_type,
             "station_name": d["station_name"],
             "address": d["address"],
@@ -65,6 +72,9 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
             "distance_m": d["distance_m"],
             "updated_at": d["updated_at"],
         }
+        if directions_url:
+            attrs["directions_url"] = directions_url
+        return attrs
 
     @property
     def device_info(self) -> dict:
