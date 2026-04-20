@@ -10,8 +10,8 @@ A [Home Assistant](https://www.home-assistant.io/) custom component that tracks 
 ## Features
 
 - 🔍 **Finds the cheapest price** for each fuel type within a configurable radius of your location
-- 📍 **Flexible location source** — use `zone.home` (fixed) or any `device_tracker` entity for on-the-go tracking
-- ⚡ **Smart refresh** — re-fetches data when your device moves more than 250 m (GPS jitter ignored)
+- � **Automatic multi-person tracking** — auto-detects all `person.*` entities in HA; creates a separate device per person showing prices near their current location
+- ⚡ **Smart refresh** — re-fetches data when a person moves more than 250 m (GPS jitter ignored)
 - 🛢️ **Supports all VIC fuel types** — U91, P95, P98, Diesel, Premium Diesel, E10, E85, B20, LPG, LNG, CNG
 - 📊 **Rich sensor attributes** — cheapest station name, address, phone number, distance, and last updated time
 - 🔄 **HACS compatible** — easy install and update via HACS
@@ -48,22 +48,22 @@ A [Home Assistant](https://www.home-assistant.io/) custom component that tracks 
 2. Search for **Fuel Price Watch VIC**
 3. Enter your **Consumer ID** (from Service Victoria developer portal)
 4. Set the **search radius** in km (default: 5 km, max: 100 km)
-5. Choose your **location source**:
-   - `zone.home` *(default)* — uses your home coordinates
-   - Any `device_tracker.*` entity — follows a person/device in real time
+5. Click **Submit** — the integration will automatically create one device per `person.*` entity in your HA instance
+
+> **No person entities?** The integration falls back to `zone.home` and creates a single "Home" device.
 
 ---
 
 ## Sensors
 
-One sensor is created per **fuel type available** within your radius at setup time.
+One device is created per **person** in your HA instance, each with a sensor per fuel type available within the radius at setup time.
 
 | Entity | Example State | Unit |
 |---|---|---|
 | `sensor.fuel_price_unleaded_91` | `195.7` | c/L |
 | `sensor.fuel_price_premium_unleaded_95` | `205.9` | c/L |
 | `sensor.fuel_price_diesel` | `189.5` | c/L |
-| *(one per available fuel type)* | | |
+| *(one per available fuel type, per person)* | | |
 
 ### Supported Fuel Types
 
@@ -100,18 +100,18 @@ Each sensor exposes the following extra attributes:
 
 After setup, you can adjust options via **Settings → Devices & Services → Fuel Price Watch VIC → Configure**:
 
-- **Radius (km)** — change the search radius
-- **Location source** — switch between `zone.home` and a device tracker
+- **Radius (km)** — change the search radius (applies to all persons)
 
 ---
 
 ## How It Works
 
 1. On a configurable interval (default: **hourly**), the integration fetches all fuel prices across Victoria from the Service Victoria API
-2. It calculates the **haversine distance** from your location to each station
-3. Stations **outside the configured radius** are filtered out
-4. The **lowest price** per fuel type within the radius is exposed as a sensor
-5. If using a device tracker, prices are also refreshed whenever you move **more than 250 metres**
+2. It auto-discovers all `person.*` entities in your HA instance (falls back to `zone.home` if none exist)
+3. For each person, it calculates the **haversine distance** from their current location to each station
+4. Stations **outside the configured radius** are filtered out
+5. The **lowest price** per fuel type within the radius is exposed as a sensor under that person's device
+6. Prices are also refreshed whenever a person moves **more than 250 metres**
 
 > **Note:** The Service Victoria fuel price data is updated approximately every 24 hours, so hourly polling is sufficient and avoids unnecessary API load.
 
@@ -122,7 +122,7 @@ After setup, you can adjust options via **Settings → Devices & Services → Fu
 | Problem | Fix |
 |---|---|
 | `API authentication failed (401/403)` | Check your Consumer ID in the integration options |
-| `Location source not found` | Ensure the device tracker entity exists and is available in HA |
+| `Person entity has no latitude/longitude` | Ensure location permission is granted in the HA Companion app |
 | `No sensors created` | No fuel stations were found within your radius — try increasing it |
 | Prices not updating | Check HA logs for errors; confirm the API is reachable from your HA instance |
 

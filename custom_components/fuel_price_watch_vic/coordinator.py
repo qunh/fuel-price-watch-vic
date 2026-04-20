@@ -12,9 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     API_PRICES_ENDPOINT,
     CONF_CONSUMER_ID,
-    CONF_LOCATION_SOURCE,
     CONF_RADIUS_KM,
-    DEFAULT_LOCATION_SOURCE,
     DEFAULT_RADIUS_KM,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -41,26 +39,30 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 class FuelPriceCoordinator(DataUpdateCoordinator):
     """Coordinator that fetches all VIC fuel prices and filters by radius."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        person_entity_id: str,
+        person_name: str,
+    ) -> None:
         self.entry = entry
+        self.person_entity_id = person_entity_id
+        self.person_name = person_name
         self._last_lat: float | None = None
         self._last_lon: float | None = None
         self._unsub_location: callable | None = None
         super().__init__(
             hass,
             _LOGGER,
-            name=DOMAIN,
+            name=f"{DOMAIN}_{person_entity_id}",
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
 
     def _register_location_listener(self) -> None:
-        """Subscribe to state changes on the configured location source entity."""
-        location_source: str = self.entry.options.get(
-            CONF_LOCATION_SOURCE,
-            self.entry.data.get(CONF_LOCATION_SOURCE, DEFAULT_LOCATION_SOURCE),
-        )
-        # zone.home doesn't move, no need to listen
-        if location_source == DEFAULT_LOCATION_SOURCE:
+        """Subscribe to state changes on the person entity to trigger re-fetch on movement."""
+        # zone.home (fallback) doesn't move — no listener needed
+        if self.person_entity_id == "zone.home":
             return
 
         @callback
@@ -82,14 +84,14 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
 
             _LOGGER.debug(
                 "Location changed for %s — triggering fuel price refresh",
-                location_source,
+                self.person_entity_id,
             )
             self.hass.async_create_task(self.async_request_refresh())
 
         self._unsub_location = async_track_state_change_event(
-            self.hass, [location_source], _on_location_change
+            self.hass, [self.person_entity_id], _on_location_change
         )
-        _LOGGER.debug("Registered location listener on %s", location_source)
+        _LOGGER.debug("Registered location listener on %s", self.person_entity_id)
 
     def _unregister_location_listener(self) -> None:
         """Remove the state-change subscription if it exists."""
@@ -118,24 +120,19 @@ class FuelPriceCoordinator(DataUpdateCoordinator):
             CONF_RADIUS_KM, self.entry.data.get(CONF_RADIUS_KM, DEFAULT_RADIUS_KM)
         )) * 1000
 
-        # Resolve coordinates from the configured location source
-        location_source: str = self.entry.options.get(
-            CONF_LOCATION_SOURCE,
-            self.entry.data.get(CONF_LOCATION_SOURCE, DEFAULT_LOCATION_SOURCE),
-        )
-        location_state = self.hass.states.get(location_source)
+        # Resolve coordinates from the person entity
+        location_state = self.hass.states.get(self.person_entity_id)
         if location_state is None:
             raise UpdateFailed(
-                f"Location source '{location_source}' not found. "
-                "Check the integration options or ensure the device tracker is available."
+                f"Location entity '{self.person_entity_id}' not found."
             )
         try:
             home_lat: float = float(location_state.attributes["latitude"])
             home_lon: float = float(location_state.attributes["longitude"])
         except (KeyError, TypeError, ValueError) as err:
             raise UpdateFailed(
-                f"'{location_source}' has no latitude/longitude attributes. "
-                "If using a device tracker, ensure location permission is granted in the HA app."
+                f"'{self.person_entity_id}' has no latitude/longitude. "
+                "Ensure location permission is granted in the HA app."
             ) from err
 
         # Store last known position for movement threshold checks in the listener

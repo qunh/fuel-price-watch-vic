@@ -16,13 +16,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     from .coordinator import FuelPriceCoordinator
 
-    coordinator = FuelPriceCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
+    coordinators: dict[str, FuelPriceCoordinator] = {}
 
-    # Start listening for location changes (no-op if source is zone.home)
-    coordinator._register_location_listener()
+    # Auto-discover all person.* entities and create one coordinator per person
+    for person_state in hass.states.async_all("person"):
+        person_id = person_state.entity_id
+        person_name = (
+            person_state.attributes.get("friendly_name")
+            or person_id.split(".")[-1].replace("_", " ").title()
+        )
+        try:
+            coordinator = FuelPriceCoordinator(hass, entry, person_id, person_name)
+            await coordinator.async_config_entry_first_refresh()
+            coordinator._register_location_listener()
+            coordinators[person_id] = coordinator
+        except Exception as err:
+            _LOGGER.warning(
+                "Skipping person '%s' — could not fetch location: %s", person_id, err
+            )
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    # Fall back to zone.home if no person entities exist or all failed
+    if not coordinators:
+        _LOGGER.debug("No person entities found; using zone.home as location source")
+        coordinator = FuelPriceCoordinator(hass, entry, "zone.home", "Home")
+        await coordinator.async_config_entry_first_refresh()
+        coordinators["zone.home"] = coordinator
+
+    hass.data[DOMAIN][entry.entry_id] = coordinators
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -30,8 +50,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    coordinator = hass.data[DOMAIN].get(entry.entry_id)
-    if coordinator is not None:
+    coordinators: dict = hass.data[DOMAIN].get(entry.entry_id, {})
+    for coordinator in coordinators.values():
         coordinator._unregister_location_listener()
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

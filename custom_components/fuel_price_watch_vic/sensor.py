@@ -13,13 +13,16 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up one sensor per fuel type found in initial coordinator data."""
-    coordinator: FuelPriceCoordinator = hass.data[DOMAIN][entry.entry_id]
+    """Set up one sensor per fuel type per person found in coordinator data."""
+    coordinators: dict = hass.data[DOMAIN][entry.entry_id]
 
-    async_add_entities(
-        FuelPriceSensor(coordinator, entry, fuel_type)
-        for fuel_type in coordinator.data
-    )
+    entities = []
+    for coordinator in coordinators.values():
+        entities.extend(
+            FuelPriceSensor(coordinator, entry, fuel_type)
+            for fuel_type in coordinator.data
+        )
+    async_add_entities(entities)
 
 
 class FuelPriceSensor(CoordinatorEntity, SensorEntity):
@@ -38,7 +41,7 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._fuel_type = fuel_type
         friendly = FUEL_TYPES.get(fuel_type, fuel_type)
-        self._attr_unique_id = f"{entry.entry_id}_{fuel_type}"
+        self._attr_unique_id = f"{entry.entry_id}_{coordinator.person_entity_id}_{fuel_type}"
         self._attr_name = friendly
 
     @property
@@ -79,8 +82,10 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
     @property
     def device_info(self) -> dict:
         return {
-            "identifiers": {(DOMAIN, self.coordinator.entry.entry_id)},
-            "name": "Fuel Price Watch",
+            "identifiers": {
+                (DOMAIN, f"{self.coordinator.entry.entry_id}_{self.coordinator.person_entity_id}")
+            },
+            "name": f"Fuel Price Watch VIC — {self.coordinator.person_name}",
             "manufacturer": "Service Victoria",
             "model": "Fair Fuel Open Data",
         }

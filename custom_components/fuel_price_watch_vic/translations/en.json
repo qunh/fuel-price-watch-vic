@@ -3,17 +3,10 @@
     "step": {
       "user": {
         "title": "Set up Fuel Price Watch VIC",
-        "description": "Enter your Service Victoria Fair Fuel API consumer ID and the search radius around your location.",
+        "description": "Enter your Service Victoria Fair Fuel API consumer ID and the search radius. The integration will automatically track all person entities in your Home Assistant instance.",
         "data": {
           "consumer_id": "Consumer ID",
           "radius_km": "Search radius (km)"
-        }
-      },
-      "location": {
-        "title": "Choose location source",
-        "description": "Select the entity used as the centre of the search radius. Choose 'zone.home' for a fixed location, or a device tracker for your live phone GPS.",
-        "data": {
-          "location_source": "Location source"
         }
       }
     },
@@ -31,8 +24,7 @@
       "init": {
         "title": "Fuel Price Watch VIC Options",
         "data": {
-          "radius_km": "Search radius (km)",
-          "location_source": "Location source"
+          "radius_km": "Search radius (km)"
         }
       }
     }
