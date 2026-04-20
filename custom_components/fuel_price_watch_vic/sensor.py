@@ -14,14 +14,29 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up one sensor per fuel type per person."""
+    """Set up one price sensor + station/address sensors per fuel type per person."""
     coordinators: dict = hass.data[DOMAIN][entry.entry_id]
 
-    entities = [
-        FuelPriceSensor(coordinator, entry, fuel_type)
-        for coordinator in coordinators.values()
-        for fuel_type in FUEL_TYPES
-    ]
+    entities = []
+    for coordinator in coordinators.values():
+        for fuel_type in FUEL_TYPES:
+            entities.append(FuelPriceSensor(coordinator, entry, fuel_type))
+            entities.append(
+                FuelFieldSensor(
+                    coordinator, entry, fuel_type,
+                    field_key="station_name",
+                    field_label="Station",
+                    icon="mdi:store",
+                )
+            )
+            entities.append(
+                FuelFieldSensor(
+                    coordinator, entry, fuel_type,
+                    field_key="address",
+                    field_label="Address",
+                    icon="mdi:map-marker",
+                )
+            )
     async_add_entities(entities)
 
 
@@ -82,5 +97,48 @@ class FuelPriceSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
+        self._update_from_coordinator()
+        self.async_write_ha_state()
+
+
+class FuelFieldSensor(CoordinatorEntity, SensorEntity):
+    """Text sensor exposing a single field (station name, address) for one fuel type."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: FuelPriceCoordinator,
+        entry: ConfigEntry,
+        fuel_type: str,
+        field_key: str,
+        field_label: str,
+        icon: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._fuel_type = fuel_type
+        self._field_key = field_key
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{coordinator.person_entity_id}_{fuel_type}_{field_key}"
+        )
+        self._attr_name = f"{FUEL_TYPES.get(fuel_type, fuel_type)} {field_label}"
+        self._attr_icon = icon
+        self._attr_device_info = DeviceInfo(
+            identifiers={
+                (DOMAIN, f"{coordinator.entry.entry_id}_{coordinator.person_entity_id}")
+            },
+            name=f"Fuel Price Watch VIC \u2014 {coordinator.person_name}",
+            manufacturer="Service Victoria",
+            model="Fair Fuel Open Data",
+        )
+        self._update_from_coordinator()
+
+    def _update_from_coordinator(self) -> None:
+        data = self.coordinator.data or {}
+        d = data.get(self._fuel_type)
+        self._attr_native_value = d.get(self._field_key, "") if d else None
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
         self._update_from_coordinator()
         self.async_write_ha_state()

@@ -56,14 +56,16 @@ A [Home Assistant](https://www.home-assistant.io/) custom component that tracks 
 
 ## Sensors
 
-One device is created per **person** in your HA instance, each with a sensor per fuel type available within the radius at setup time.
+One device is created per **person** in your HA instance. For each fuel type, **three sensors** are created:
 
-| Entity | Example State | Unit |
-|---|---|---|
-| `sensor.fuel_price_unleaded_91` | `195.7` | c/L |
-| `sensor.fuel_price_premium_unleaded_95` | `205.9` | c/L |
-| `sensor.fuel_price_diesel` | `189.5` | c/L |
-| *(one per available fuel type, per person)* | | |
+| Entity | Example State | Unit | Description |
+|---|---|---|---|
+| `sensor.fuel_price_unleaded_91` | `195.7` | c/L | Cheapest price within radius |
+| `sensor.fuel_price_unleaded_91_station` | `Metro Petroleum Ringwood` | — | Name of the cheapest station |
+| `sensor.fuel_price_unleaded_91_address` | `123 Main St, Ringwood VIC` | — | Address of the cheapest station |
+| *(one set per fuel type, per person)* | | | |
+
+The station name and address sensors show directly in the Home Assistant companion app without needing the Details menu.
 
 ### Supported Fuel Types
 
@@ -81,9 +83,9 @@ One device is created per **person** in your HA instance, each with a sensor per
 | LNG | LNG |
 | CNG | CNG |
 
-### Sensor Attributes
+### Price Sensor Attributes
 
-Each sensor exposes the following extra attributes:
+The price sensor (e.g. `sensor.fuel_price_unleaded_91`) exposes these extra attributes accessible via templates and automations:
 
 | Attribute | Description |
 |---|---|
@@ -93,6 +95,7 @@ Each sensor exposes the following extra attributes:
 | `phone` | Station phone number |
 | `distance_m` | Distance to the station in metres |
 | `updated_at` | Timestamp of the last price update from the API |
+| `directions_url` | Google Maps directions link to the station |
 
 ---
 
