@@ -25,15 +25,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             person_state.attributes.get("friendly_name")
             or person_id.split(".")[-1].replace("_", " ").title()
         )
+        coordinator = FuelPriceCoordinator(hass, entry, person_id, person_name)
         try:
-            coordinator = FuelPriceCoordinator(hass, entry, person_id, person_name)
             await coordinator.async_config_entry_first_refresh()
-            coordinator._register_location_listener()
-            coordinators[person_id] = coordinator
         except Exception as err:
             _LOGGER.warning(
-                "Skipping person '%s' — could not fetch location: %s", person_id, err
+                "Initial fetch failed for '%s': %s — will retry on next poll", person_id, err
             )
+        coordinator._register_location_listener()
+        coordinators[person_id] = coordinator
 
     # Fall back to zone.home if no person entities exist or all failed
     if not coordinators:

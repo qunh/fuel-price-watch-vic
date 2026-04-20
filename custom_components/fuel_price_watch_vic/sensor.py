@@ -13,15 +13,14 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up one sensor per fuel type per person found in coordinator data."""
+    """Set up one sensor per fuel type per person."""
     coordinators: dict = hass.data[DOMAIN][entry.entry_id]
 
-    entities = []
-    for coordinator in coordinators.values():
-        entities.extend(
-            FuelPriceSensor(coordinator, entry, fuel_type)
-            for fuel_type in coordinator.data
-        )
+    entities = [
+        FuelPriceSensor(coordinator, entry, fuel_type)
+        for coordinator in coordinators.values()
+        for fuel_type in FUEL_TYPES
+    ]
     async_add_entities(entities)
 
 
